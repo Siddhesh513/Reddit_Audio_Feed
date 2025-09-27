@@ -1,4 +1,3 @@
-cat > backend/requirements.txt << 'EOF'
 # Reddit API
 praw==7.7.1
 
@@ -10,4 +9,3 @@ requests==2.31.0
 
 # Utilities
 loguru==0.7.2  # Better logging than standard library
-EOF

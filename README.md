@@ -1,4 +1,3 @@
-cat > README.md << 'EOF'
 # Reddit Audio Feed
 
 Convert Reddit posts to audio format for hands-free listening.
@@ -23,4 +22,3 @@ Convert Reddit posts to audio format for hands-free listening.
 
 ## License
 MIT
-EOF
