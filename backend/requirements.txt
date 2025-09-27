@@ -1,0 +1,13 @@
+cat > backend/requirements.txt << 'EOF'
+# Reddit API
+praw==7.7.1
+
+# Environment and Config
+python-dotenv==1.0.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Utilities
+loguru==0.7.2  # Better logging than standard library
+EOF
