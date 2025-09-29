@@ -18,6 +18,10 @@ class Config:
     REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
     REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT')
 
+    # Directory paths - ADD THESE LINES
+    BASE_DIR = BASE_DIR
+    DATA_DIR = DATA_DIR  # <-- ADD THIS LINE
+
     # Data Directories
     DATA_RAW_PATH = DATA_DIR / "raw"
     DATA_PROCESSED_PATH = DATA_DIR / "processed"
