@@ -1,0 +1,9 @@
+RAW REDDIT TITLE:
+TIL rolling your tongue like a taco is NOT a genetic trait
+
+RAW REDDIT BODY:
+
+
+==================================================
+FINAL TEXT SENT TO TTS:
+Today I learned rolling your tongue like a taco is <emphasis level=<prosody rate="95%">strong</prosody>>not</emphasis> a genetic trait.
