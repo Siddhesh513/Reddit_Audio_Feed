@@ -31,6 +31,13 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
+    # API Settings
+    API_HOST = os.getenv('API_HOST', '0.0.0.0')
+    API_PORT = int(os.getenv('API_PORT', '8000'))
+
+    # CORS Settings
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8080').split(',')
+
     # Reddit Fetching Defaults
     DEFAULT_POST_LIMIT = 10
     DEFAULT_SORT_TYPE = 'hot'  # hot, new, top

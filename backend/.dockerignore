@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Tests and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+
+# Data (will be mounted as volumes)
+data/raw/*
+data/processed/*
+data/audio/*
+
+# Keep .gitkeep files
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/audio/.gitkeep
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+
+# Test files
+tests/
