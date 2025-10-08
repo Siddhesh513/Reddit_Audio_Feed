@@ -111,10 +111,10 @@ async def download_audio(filename: str):
         # Sanitize filename
         filename = os.path.basename(filename)
 
-        # Check in main audio directory
+        # Check in main audio directory first
         file_path = Path(config.DATA_AUDIO_PATH) / filename
 
-        # Also check in organized folders
+        # If not found, check in organized folders
         if not file_path.exists():
             organized_path = Path(config.DATA_AUDIO_PATH) / 'organized'
             for possible_file in organized_path.rglob(filename):
@@ -151,7 +151,16 @@ async def stream_audio(filename: str):
     """
     try:
         filename = os.path.basename(filename)
+
+        # Check in main audio directory first
         file_path = Path(config.DATA_AUDIO_PATH) / filename
+
+        # If not found, check in organized folders
+        if not file_path.exists():
+            organized_path = Path(config.DATA_AUDIO_PATH) / 'organized'
+            for possible_file in organized_path.rglob(filename):
+                file_path = possible_file
+                break
 
         if not file_path.exists():
             raise HTTPException(
@@ -197,6 +206,31 @@ async def list_audio_files(
             files = manager.get_audio_by_subreddit(subreddit)
         else:
             files = manager.get_recent_audio(hours=24*7, limit=limit+offset)
+
+        # Fix file paths and ensure filename is present
+        for file in files:
+            # Extract filename from full path if needed
+            if 'file_path' in file:
+                file['filename'] = os.path.basename(file['file_path'])
+
+            # Check if file exists in main directory or organized
+            if 'filename' in file:
+                main_path = Path(config.DATA_AUDIO_PATH) / file['filename']
+                if main_path.exists():
+                    file['exists'] = True
+                else:
+                    # Check in organized folders
+                    organized_path = Path(config.DATA_AUDIO_PATH) / 'organized'
+                    found = False
+                    for possible_file in organized_path.rglob(file['filename']):
+                        file['exists'] = True
+                        found = True
+                        break
+                    if not found:
+                        file['exists'] = False
+
+        # Filter out non-existent files
+        files = [f for f in files if f.get('exists', False)]
 
         # Apply pagination
         paginated = files[offset:offset+limit]
