@@ -38,20 +38,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS with environment-specific origins
-allowed_origins = config.CORS_ORIGINS if hasattr(config, 'CORS_ORIGINS') else [
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8080"
-]
+# Configure CORS - allow all origins for development
+# In production, you should restrict this to specific origins
+allowed_origins = ["*"]
 
-logger.info(f"CORS allowed origins: {allowed_origins}")
+logger.info(f"CORS enabled for all origins (development mode)")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=False,  # Must be False when allow_origins is ["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )

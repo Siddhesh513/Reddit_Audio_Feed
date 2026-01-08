@@ -70,10 +70,11 @@ class AudioGenerateRequest(BaseModel):
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
     engine: str = "gtts"
     
-    @validator('post_data')
+    @validator('engine')
     def validate_input(cls, v, values):
         # Must have either post_id, post_data, or text
-        if not v and not values.get('post_id') and not values.get('text'):
+        # This validator runs last since 'engine' is the last field
+        if not values.get('post_id') and not values.get('post_data') and not values.get('text'):
             raise ValueError("Must provide either post_id, post_data, or text")
         return v
 

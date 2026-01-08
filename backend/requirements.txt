@@ -7,5 +7,13 @@ python-dotenv==1.0.0
 # HTTP Requests
 requests==2.31.0
 
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.0
+
+# Audio Processing
+gtts==2.5.1
+
 # Utilities
 loguru==0.7.2  # Better logging than standard library

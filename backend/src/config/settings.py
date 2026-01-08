@@ -2,12 +2,19 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
 # Base directory paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = BASE_DIR / "data"
+
+# Load environment variables from .env file (check multiple locations)
+env_paths = [
+    BASE_DIR / ".env",  # backend/.env
+    BASE_DIR.parent / ".env",  # project root/.env
+]
+for env_path in env_paths:
+    if env_path.exists():
+        load_dotenv(env_path)
+        break
 
 
 class Config:

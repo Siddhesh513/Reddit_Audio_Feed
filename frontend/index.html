@@ -3,10 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reddit Audio Feed</title>
+    <title>Reddit Audio Feed - Convert Reddit to Audio</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <h1>Reddit Audio Feed</h1>
-    <p>Coming soon...</p>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div>
+                        <h1>🎧 Reddit Audio Feed</h1>
+                        <p>Convert Reddit posts to audio for hands-free listening</p>
+                    </div>
+                    <button id="theme-toggle" class="btn-icon theme-toggle" title="Toggle Dark Mode">🌙</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Subreddit Selection -->
+                <section class="card" id="subreddit-section">
+                    <h2>Select Subreddit</h2>
+                    <div class="input-group">
+                        <input type="text" id="subreddit-input" placeholder="Enter subreddit (e.g., todayilearned)" value="todayilearned">
+                        <select id="sort-select">
+                            <option value="hot">Hot</option>
+                            <option value="new">New</option>
+                            <option value="top">Top</option>
+                            <option value="rising">Rising</option>
+                        </select>
+                        <input type="number" id="limit-input" min="1" max="50" value="10" placeholder="Limit">
+                        <button id="fetch-posts-btn" class="btn btn-primary">Fetch Posts</button>
+                    </div>
+                    
+                    <!-- Quick Access Buttons -->
+                    <div class="quick-access">
+                        <button class="btn-small" data-subreddit="todayilearned">TIL</button>
+                        <button class="btn-small" data-subreddit="AskReddit">AskReddit</button>
+                        <button class="btn-small" data-subreddit="Showerthoughts">Showerthoughts</button>
+                        <button class="btn-small" data-subreddit="LifeProTips">LifeProTips</button>
+                        <button class="btn-small" data-subreddit="explainlikeimfive">ELI5</button>
+                    </div>
+                </section>
+
+                <!-- Posts List -->
+                <section class="card" id="posts-section" style="display: none;">
+                    <h2>Reddit Posts</h2>
+                    <div class="posts-actions">
+                        <button id="select-all-btn" class="btn btn-secondary">Select All</button>
+                        <button id="generate-selected-btn" class="btn btn-primary" disabled>Generate Audio</button>
+                        <button id="add-to-queue-btn" class="btn btn-secondary" disabled>Add to Queue</button>
+                    </div>
+                    <div id="posts-list" class="posts-list">
+                        <!-- Posts will be loaded here -->
+                    </div>
+                </section>
+
+                <!-- Audio Player -->
+                <section class="card" id="player-section" style="display: none;">
+                    <h2>Audio Player</h2>
+                    <div class="audio-player">
+                        <audio id="audio-player" controls></audio>
+                        <div class="player-info">
+                            <h3 id="now-playing">No audio loaded</h3>
+                            <p id="audio-info"></p>
+                        </div>
+                        <div class="player-controls">
+                            <button id="prev-btn" class="btn btn-secondary" title="Previous (←)">⏮ Previous</button>
+                            <button id="play-pause-btn" class="btn btn-primary" title="Play/Pause (Space)">▶️ Play</button>
+                            <button id="next-btn" class="btn btn-secondary" title="Next (→)">⏭ Next</button>
+                            <div class="volume-control">
+                                <span>🔊</span>
+                                <input type="range" id="volume-slider" min="0" max="100" value="100" title="Volume">
+                            </div>
+                            <select id="speed-select" title="Playback Speed">
+                                <option value="0.75">0.75x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                            <button id="shuffle-btn" class="btn-icon" title="Shuffle">🔀</button>
+                            <button id="repeat-btn" class="btn-icon" title="Repeat">🔁</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Playlist -->
+                    <div class="playlist">
+                        <h3>Playlist</h3>
+                        <div id="playlist-items" class="playlist-items">
+                            <!-- Playlist items will be loaded here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Queue Management -->
+                <section class="card" id="queue-section">
+                    <h2>Queue Status</h2>
+                    <div class="queue-stats">
+                        <div class="stat">
+                            <span class="stat-label">Total:</span>
+                            <span id="queue-total" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Pending:</span>
+                            <span id="queue-pending" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Processing:</span>
+                            <span id="queue-processing" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Completed:</span>
+                            <span id="queue-completed" class="stat-value">0</span>
+                        </div>
+                    </div>
+                    <div class="queue-actions">
+                        <button id="process-queue-btn" class="btn btn-primary">Process Queue</button>
+                        <button id="clear-completed-btn" class="btn btn-secondary">Clear Completed</button>
+                        <button id="refresh-queue-btn" class="btn btn-secondary">Refresh</button>
+                    </div>
+                    <div id="queue-items" class="queue-items">
+                        <!-- Queue items will be loaded here -->
+                    </div>
+                </section>
+
+                <!-- Generated Audio Files -->
+                <section class="card" id="files-section">
+                    <h2>Generated Audio Files</h2>
+                    <div class="files-actions">
+                        <button id="refresh-files-btn" class="btn btn-secondary">Refresh List</button>
+                        <button id="download-all-btn" class="btn btn-primary">Download All</button>
+                    </div>
+                    <div id="files-list" class="files-list">
+                        <!-- Audio files will be listed here -->
+                    </div>
+                </section>
+
+                <!-- Statistics -->
+                <section class="card" id="stats-section">
+                    <h2>Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h4>Audio Files</h4>
+                            <p id="stat-files">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Total Duration</h4>
+                            <p id="stat-duration">0 min</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Storage Used</h4>
+                            <p id="stat-storage">0 MB</p>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Posts Processed</h4>
+                            <p id="stat-processed">0</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <p>Reddit Audio Feed © 2024 | API Status: <span id="api-status">Checking...</span></p>
+            </div>
+        </footer>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p id="loading-message">Processing...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Post Preview Modal -->
+        <div id="preview-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="preview-title">Post Preview</h2>
+                    <button class="modal-close" onclick="ui.closePreview()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="preview-meta" class="preview-meta"></div>
+                    <div id="preview-text" class="preview-text"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="ui.closePreview()">Close</button>
+                    <button class="btn btn-primary" id="preview-generate-btn">Generate Audio</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
