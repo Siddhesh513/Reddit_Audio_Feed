@@ -15,11 +15,11 @@ def test_config(monkeypatch):
     """Test configuration loading"""
     logger.info("Testing configuration...")
 
-    # Mock required environment variables for CI/testing
-    # These are needed for config.validate() to pass without real Reddit API credentials
-    monkeypatch.setenv("REDDIT_CLIENT_ID", "test_client_id_12345")
-    monkeypatch.setenv("REDDIT_CLIENT_SECRET", "test_client_secret_67890")
-    monkeypatch.setenv("REDDIT_USER_AGENT", "test_user_agent/1.0")
+    # Patch Config class attributes directly (not env vars)
+    # Config reads env vars at import time, so we must patch the already-loaded attributes
+    monkeypatch.setattr(config, "REDDIT_CLIENT_ID", "test_client_id_12345")
+    monkeypatch.setattr(config, "REDDIT_CLIENT_SECRET", "test_client_secret_67890")
+    monkeypatch.setattr(config, "REDDIT_USER_AGENT", "test_user_agent/1.0")
 
     try:
         config.validate()
