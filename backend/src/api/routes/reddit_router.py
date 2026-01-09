@@ -10,6 +10,8 @@ import time
 from src.api.models import (
     RedditPostRequest,
     RedditPostResponse,
+    RedditPostsResponse,
+    PostsMetadata,
     BaseResponse,
     ErrorResponse,
     PaginationParams
@@ -23,38 +25,86 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 
-@router.get("/posts", response_model=List[RedditPostResponse])
+@router.get("/posts", response_model=RedditPostsResponse)
 async def fetch_reddit_posts(
     subreddit: str = Query(..., description="Subreddit name"),
     sort_type: str = Query("hot", description="Sort type: hot, new, top, rising"),
     limit: int = Query(10, ge=1, le=100, description="Number of posts"),
-    min_score: int = Query(0, ge=0, description="Minimum score filter")
+
+    # Filter parameters (all optional)
+    min_upvotes: Optional[int] = Query(None, ge=0, description="Minimum upvotes threshold"),
+    min_char_count: Optional[int] = Query(None, ge=0, description="Minimum character count (title + selftext)"),
+    max_char_count: Optional[int] = Query(None, ge=1, description="Maximum character count (title + selftext)"),
+    exclude_nsfw: bool = Query(False, description="Exclude NSFW posts"),
+    exclude_deleted_removed: bool = Query(True, description="Exclude deleted/removed posts"),
+    exclude_image_only: bool = Query(False, description="Exclude image-only posts (no meaningful text)"),
+    exclude_link_only: bool = Query(False, description="Exclude link-only posts (no meaningful text)"),
 ):
     """
-    Fetch posts from a subreddit
-    
+    Fetch posts from a subreddit with optional content filtering.
+
+    **Basic Parameters:**
     - **subreddit**: Name of subreddit (without r/)
     - **sort_type**: How to sort posts (hot, new, top, rising)
     - **limit**: Number of posts to fetch (1-100)
-    - **min_score**: Minimum score to include
+
+    **Filter Parameters (all optional):**
+    - **min_upvotes**: Only include posts with this many upvotes or more
+    - **min_char_count**: Minimum total character count (title + selftext)
+    - **max_char_count**: Maximum total character count (title + selftext)
+    - **exclude_nsfw**: Exclude NSFW/18+ posts
+    - **exclude_deleted_removed**: Exclude posts marked as [deleted] or [removed]
+    - **exclude_image_only**: Exclude image posts without meaningful text (< 50 chars)
+    - **exclude_link_only**: Exclude link posts without meaningful text (< 50 chars)
+
+    **Returns:**
+    Posts list with metadata including total fetched, total passed filters, and filter statistics.
     """
     try:
         reddit = get_reddit_client()
-        
+
         # Validate subreddit
         if not reddit.validate_subreddit(subreddit):
             raise HTTPException(status_code=404, detail=f"Subreddit r/{subreddit} not found or inaccessible")
-        
-        # Fetch posts
-        posts = reddit.fetch_subreddit_posts(subreddit, sort_type, limit)
-        
-        # Filter by score
-        if min_score > 0:
-            posts = [p for p in posts if p.get('score', 0) >= min_score]
-        
-        # Convert to response model
-        return [RedditPostResponse(**post) for post in posts]
-        
+
+        # Build filter config if any filters are specified
+        filter_config = None
+        if any([min_upvotes is not None, min_char_count, max_char_count,
+                exclude_nsfw, exclude_deleted_removed, exclude_image_only, exclude_link_only]):
+            from src.models.post_filter_config import PostFilterConfig
+            filter_config = PostFilterConfig(
+                min_upvotes=min_upvotes,
+                min_char_count=min_char_count,
+                max_char_count=max_char_count,
+                exclude_nsfw=exclude_nsfw,
+                exclude_deleted_removed=exclude_deleted_removed,
+                exclude_image_only=exclude_image_only,
+                exclude_link_only=exclude_link_only
+            )
+
+        # Fetch posts (with or without filters)
+        result = reddit.fetch_subreddit_posts(subreddit, sort_type, limit, filter_config)
+
+        # Handle backwards compatibility
+        if isinstance(result, list):
+            # Old format (no filters) - wrap in new format
+            return {
+                'posts': [RedditPostResponse(**post) for post in result],
+                'metadata': {
+                    'total_fetched': len(result),
+                    'total_passed_filters': len(result),
+                    'filters_applied': {},
+                    'filter_reasons': None,
+                    'message': None
+                }
+            }
+        else:
+            # New format (with filters)
+            return {
+                'posts': [RedditPostResponse(**post) for post in result['posts']],
+                'metadata': result['metadata']
+            }
+
     except HTTPException:
         raise
     except Exception as e:

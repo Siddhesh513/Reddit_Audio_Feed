@@ -77,57 +77,172 @@ class GTTSEngine(TTSEngine):
         }
         
         logger.info(f"gTTS engine initialized with language={self.language}, tld={self.tld}")
-    
+    def _adjust_audio_speed(
+        self,
+        audio_path: str,
+        speed: float,
+        temp_path: Optional[str] = None
+    ) -> str:
+        """
+        Adjust audio playback speed using pydub.
+
+        This method changes the playback speed of an audio file while
+        maintaining pitch. It uses pydub which requires ffmpeg.
+
+        Args:
+            audio_path: Path to original audio file
+            speed: Speed multiplier (0.5 - 2.0)
+            temp_path: Optional temporary file path
+
+        Returns:
+            Path to speed-adjusted audio file (same as input if adjustment not possible)
+
+        Note:
+            - Speed adjustment requires pydub and ffmpeg
+            - If dependencies are missing, returns original audio path with warning
+            - Speed = 1.0 returns immediately without processing
+        """
+        if speed == 1.0:
+            # No adjustment needed
+            return audio_path
+
+        try:
+            from pydub import AudioSegment
+        except ImportError:
+            logger.warning(
+                "pydub not installed, speed adjustment not available. "
+                "Install with: pip install pydub"
+            )
+            return audio_path
+
+        try:
+            # Load audio
+            audio = AudioSegment.from_mp3(audio_path)
+
+            # Adjust speed by changing frame rate
+            # This maintains pitch while changing speed
+            new_frame_rate = int(audio.frame_rate * speed)
+            speed_adjusted = audio._spawn(audio.raw_data, overrides={
+                "frame_rate": new_frame_rate
+            })
+            speed_adjusted = speed_adjusted.set_frame_rate(audio.frame_rate)
+
+            # Determine output path
+            if temp_path is None:
+                temp_path = audio_path.replace('.mp3', f'_speed_{speed}.mp3')
+
+            # Export adjusted audio
+            speed_adjusted.export(temp_path, format='mp3')
+
+            # Replace original file with adjusted version
+            os.remove(audio_path)
+            os.rename(temp_path, audio_path)
+
+            logger.info(f"Adjusted audio speed to {speed}x")
+            return audio_path
+
+        except FileNotFoundError:
+            logger.error(
+                "ffmpeg not found. Install ffmpeg to enable speed adjustment. "
+                "On macOS: brew install ffmpeg, On Ubuntu: apt-get install ffmpeg"
+            )
+            return audio_path
+        except Exception as e:
+            logger.error(f"Error adjusting audio speed: {e}")
+            return audio_path
+
     def generate_audio(
-        self, 
-        text: str, 
+        self,
+        text: str,
         output_path: str,
         voice: Optional[str] = None,
         speed: float = 1.0,
+        language: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
-        """Generate audio using gTTS"""
+        """
+        Generate audio using Google Text-to-Speech.
+
+        Args:
+            text: Text to convert to speech
+            output_path: Path to save audio file
+            voice: Voice ID (e.g., 'en-US', 'es-ES', 'fr-FR')
+                   Falls back to language-based selection if not found
+            speed: Speech rate multiplier (0.5 - 2.0)
+                   Note: gTTS doesn't support granular speed natively.
+                   Speed adjustment is done via post-processing with pydub.
+            language: Language code (e.g., 'en', 'es', 'fr')
+                      Overrides voice language if provided
+
+        Returns:
+            Dictionary with generation metadata
+
+        Note:
+            - gTTS limitations: Only binary slow mode, no pitch control
+            - Speed adjustment uses pydub post-processing (requires ffmpeg)
+            - For speeds != 1.0, audio is generated then post-processed
+        """
         
         if not self.validate_text(text):
             raise ValueError("Invalid text for TTS conversion")
         
         try:
-            # Determine TLD for voice variant
-            tld = self.voice_map.get(voice, self.tld) if voice else self.tld
-            
-            # gTTS doesn't support speed directly, but we can mention it in metadata
+            # Load voice configuration from settings
+            from src.config.settings import config
+            voice_config = config.TTSConfig.GTTS_VOICES.get(voice, {})
+
+            # Determine language and TLD
+            lang = language or voice_config.get('language', self.language)
+            tld = voice_config.get('tld', self.tld)
+
+            # Validate and clamp speed
+            speed = max(config.TTSConfig.MIN_SPEED, min(speed, config.TTSConfig.MAX_SPEED))
+
+            # gTTS only supports binary slow mode
+            # Use slow=True for speeds < 0.9, normal for >= 0.9
             slow = speed < 0.9
-            
+
+            logger.info(
+                f"Generating audio: voice={voice}, language={lang}, "
+                f"tld={tld}, speed={speed} (gTTS slow={slow})"
+            )
+
             # Create gTTS instance
             tts = gTTS(
                 text=text,
-                lang=self.language,
+                lang=lang,
                 slow=slow,
                 tld=tld
             )
-            
+
             # Ensure output directory exists
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-            
-            # Save audio file
+
+            # Generate initial audio
             tts.save(output_path)
-            
-            # Calculate metadata
+
+            # Post-process for speed adjustment if needed
+            # (only if speed != 1.0 and pydub is available)
+            if speed != 1.0:
+                output_path = self._adjust_audio_speed(output_path, speed)
+
+            # Get file info
             file_size = os.path.getsize(output_path)
             duration = self.estimate_duration(text, speed)
-            
+
             metadata = {
-                'engine': 'gtts',
-                'voice': voice or f'{self.language}-{tld}',
-                'language': self.language,
-                'speed': speed,
+                'success': True,
                 'file_path': output_path,
-                'file_size_bytes': file_size,
                 'duration_seconds': duration,
-                'text_length': len(text),
-                'success': True
+                'voice': voice or f'{lang}-default',
+                'language': lang,
+                'speed': speed,
+                'file_size_bytes': file_size,
+                'engine': 'gtts',
+                'tld': tld,
+                'text_length': len(text)
             }
-            
+
             logger.success(f"Audio generated: {output_path} ({duration:.1f}s, {file_size/1024:.1f}KB)")
             return metadata
             

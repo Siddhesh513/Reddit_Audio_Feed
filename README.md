@@ -11,10 +11,14 @@ Convert Reddit posts to audio format for hands-free listening. Perfect for consu
 ### Core Functionality
 - 📱 **Reddit Integration** - Fetch posts from any subreddit with flexible sorting (hot, new, top, rising)
 - 🎙️ **Text-to-Speech** - Convert text posts to natural-sounding audio using gTTS
+  - 🌍 **14 Voice Options** - English (US, UK, AU, IN, CA), Spanish (ES, MX), French (FR, CA), German, Italian, Japanese, Portuguese (BR, PT)
+  - ⚡ **Speed Control** - Adjustable speech rate from 0.5x to 2.0x
+  - 🗣️ **Language Override** - Mix and match voices with any language
 - 🎵 **Audio Player** - Built-in web player with playlist support
 - ⬇️ **Download** - Save audio files for offline listening
 - 📊 **Queue Management** - Process multiple posts efficiently with priority queue
 - 📈 **Statistics** - Track your audio library size and usage
+- 🔍 **Smart Filtering** - Filter posts by upvotes, length, content type (text-only, no NSFW, etc.)
 
 ### User Experience
 - 🌓 **Dark Mode** - Easy on the eyes with automatic theme persistence
@@ -55,6 +59,10 @@ Convert Reddit posts to audio format for hands-free listening. Perfect for consu
 - Python 3.11 or higher
 - Reddit API credentials ([Get them here](https://www.reddit.com/prefs/apps))
 - Modern web browser
+- ffmpeg (optional, for speed adjustment feature)
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt-get install ffmpeg`
+  - Windows: Download from [ffmpeg.org](https://ffmpeg.org)
 
 ### 5-Minute Setup
 
@@ -172,6 +180,37 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 4. Click "Create app"
 5. Copy the **client ID** (under the app name) and **client secret**
 
+### TTS Voice Configuration
+
+The system supports 14 different voice options across 7 languages:
+
+**English Variants:**
+- `en-US` - English (United States) - Default
+- `en-GB` - English (United Kingdom)
+- `en-AU` - English (Australia)
+- `en-IN` - English (India)
+- `en-CA` - English (Canada)
+
+**Other Languages:**
+- `es-ES` - Spanish (Spain)
+- `es-MX` - Spanish (Mexico)
+- `fr-FR` - French (France)
+- `fr-CA` - French (Canada)
+- `de-DE` - German
+- `it-IT` - Italian
+- `ja-JP` - Japanese
+- `pt-BR` - Portuguese (Brazil)
+- `pt-PT` - Portuguese (Portugal)
+
+**Speed Options:**
+- `0.75` - Slow, clear speech
+- `1.0` - Normal speed (default)
+- `1.25` - Fast, efficient listening
+- `1.5` - Very fast
+- Custom: Any value between 0.5 and 2.0
+
+**Note**: Speed adjustment requires both pydub and ffmpeg to be installed. Without these, audio will be generated at normal speed.
+
 ## 📖 Usage
 
 ### Basic Workflow
@@ -270,6 +309,44 @@ GET /api/audio/stream/{filename}
 GET /api/audio/download/{filename}
 ```
 
+**Get Available Voices**
+```http
+GET /api/audio/voices
+```
+Returns list of all available TTS voices with metadata including voice ID, name, language, and TLD.
+
+**Get Speed Presets**
+```http
+GET /api/audio/speed-presets
+```
+Returns available speech rate presets (slow, normal, fast, very_fast).
+
+**Get TTS Capabilities**
+```http
+GET /api/audio/capabilities
+```
+Returns current system capabilities including ffmpeg status and available features.
+
+**Generate Audio with Voice Options**
+```http
+POST /api/audio/generate
+Content-Type: application/json
+
+{
+  "text": "Hello world, this is a test.",
+  "voice": "en-GB",
+  "speed": 1.25,
+  "language": "en"
+}
+```
+
+**Parameters:**
+- `text` / `post_id` / `post_data` - Content source (one required)
+- `voice` - Voice ID (e.g., "en-US", "es-ES") - Optional, defaults to "en-US"
+- `speed` - Speech rate multiplier (0.5 - 2.0) - Optional, defaults to 1.0
+- `language` - Language override (e.g., "en", "es") - Optional
+- `engine` - TTS engine ("gtts", "mock") - Optional, defaults to "gtts"
+
 #### Queue Endpoints
 
 **Get Queue Status**
@@ -333,6 +410,84 @@ print(f"Generated: {result['filename']}")
 # 3. Get audio file
 audio_url = f"{API_URL}/api/audio/stream/{result['filename']}"
 print(f"Listen at: {audio_url}")
+```
+
+### TTS Voice and Speed Examples
+
+**English with Different Accents:**
+```python
+# US English
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "Hello from the United States",
+    "voice": "en-US"
+})
+
+# British English
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "Hello from the United Kingdom",
+    "voice": "en-GB"
+})
+
+# Australian English
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "G'day from Australia",
+    "voice": "en-AU"
+})
+```
+
+**Multiple Languages:**
+```python
+# Spanish
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "Hola, ¿cómo estás?",
+    "voice": "es-ES",
+    "speed": 1.0
+})
+
+# French
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "Bonjour, comment allez-vous?",
+    "voice": "fr-FR",
+    "speed": 1.0
+})
+
+# German
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "Guten Tag, wie geht es Ihnen?",
+    "voice": "de-DE",
+    "speed": 1.0
+})
+```
+
+**Speed Variations:**
+```python
+# Slow speech for learning
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "This is spoken slowly for clarity",
+    "speed": 0.75
+})
+
+# Fast speech for efficiency
+requests.post(f"{API_URL}/api/audio/generate", json={
+    "text": "This is spoken quickly to save time",
+    "speed": 1.5
+})
+```
+
+**Get Available Options:**
+```python
+# List all available voices
+response = requests.get(f"{API_URL}/api/audio/voices")
+voices = response.json()
+print(f"Available voices: {len(voices['voices'])}")
+for voice in voices['voices']:
+    print(f"  - {voice['id']}: {voice['name']}")
+
+# Check system capabilities
+response = requests.get(f"{API_URL}/api/audio/capabilities")
+caps = response.json()
+print(f"Speed adjustment available: {caps['features']['speed_adjustment']}")
+print(f"ffmpeg installed: {caps['dependencies']['ffmpeg']}")
 ```
 
 ## 🛠️ Development
@@ -479,6 +634,26 @@ cat .env
 - Check backend logs for errors
 - Verify posts have text content
 - Check disk space for audio storage
+
+**Speed adjustment not working**
+- Check if ffmpeg is installed: `ffmpeg -version`
+- Install ffmpeg if missing:
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt-get install ffmpeg`
+  - Windows: Download from ffmpeg.org
+- Install pydub: `pip install pydub`
+- Check capabilities: `curl http://localhost:8000/api/audio/capabilities`
+- Note: Python 3.13 has known compatibility issues with pydub
+
+**Voice not available**
+- Check available voices: `curl http://localhost:8000/api/audio/voices`
+- Verify voice ID format (e.g., "en-US", not "en_US")
+- System will fallback to "en-US" if invalid voice specified
+
+**Different language needed**
+- See full voice list with `/api/audio/voices`
+- Use `language` parameter to override voice language
+- Example: `{"voice": "en-US", "language": "es"}` for Spanish with US accent
 
 ### Debug Mode
 

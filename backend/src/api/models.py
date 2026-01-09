@@ -61,19 +61,94 @@ class RedditPostResponse(BaseModel):
     over_18: bool
 
 
+class PostsMetadata(BaseModel):
+    """Metadata about filtered posts"""
+    total_fetched: int
+    total_passed_filters: int
+    filters_applied: Dict[str, Any]
+    filter_reasons: Optional[Dict[str, int]] = None
+    message: Optional[str] = None
+
+
+class RedditPostsResponse(BaseModel):
+    """Response with posts and metadata"""
+    posts: List[RedditPostResponse]
+    metadata: PostsMetadata
+
+
 class AudioGenerateRequest(BaseModel):
-    """Request model for audio generation"""
+    """Request model for audio generation with enhanced voice/speed options"""
     post_id: Optional[str] = None
     post_data: Optional[Dict[str, Any]] = None
     text: Optional[str] = None
-    voice: Optional[str] = "en-US"
-    speed: float = Field(default=1.0, ge=0.5, le=2.0)
-    engine: str = "gtts"
-    
+
+    # Voice selection
+    voice: Optional[str] = Field(
+        default="en-US",
+        description="Voice ID (e.g., en-US, es-ES, fr-FR). See /api/audio/voices for available options."
+    )
+
+    # Language override (optional)
+    language: Optional[str] = Field(
+        default=None,
+        description="Language code (e.g., en, es, fr). Overrides voice language if provided."
+    )
+
+    # Speech rate
+    speed: float = Field(
+        default=1.0,
+        ge=0.5,
+        le=2.0,
+        description="Speech rate multiplier. 0.75=slow, 1.0=normal, 1.25=fast. Range: 0.5-2.0"
+    )
+
+    # TTS engine
+    engine: str = Field(
+        default="gtts",
+        description="TTS engine to use (gtts, kokoro, mock)"
+    )
+
+    @validator('voice')
+    def validate_voice(cls, v):
+        """Validate voice ID against available voices"""
+        if v is None:
+            return "en-US"
+
+        # Import here to avoid circular dependency
+        try:
+            from src.config.settings import config
+            available_voices = list(config.TTSConfig.GTTS_VOICES.keys())
+
+            if v not in available_voices:
+                from src.utils.loggers import get_logger
+                logger = get_logger(__name__)
+                logger.warning(
+                    f"Voice '{v}' not found in available voices. "
+                    f"Falling back to en-US. Available: {available_voices}"
+                )
+                return "en-US"
+        except Exception:
+            # If config fails to load, use default
+            return "en-US"
+
+        return v
+
+    @validator('speed')
+    def validate_speed(cls, v):
+        """Clamp speed to valid range"""
+        try:
+            from src.config.settings import config
+            return max(
+                config.TTSConfig.MIN_SPEED,
+                min(v, config.TTSConfig.MAX_SPEED)
+            )
+        except Exception:
+            # If config fails, use hardcoded range
+            return max(0.5, min(v, 2.0))
+
     @validator('engine')
     def validate_input(cls, v, values):
-        # Must have either post_id, post_data, or text
-        # This validator runs last since 'engine' is the last field
+        """Ensure at least one input source is provided"""
         if not values.get('post_id') and not values.get('post_data') and not values.get('text'):
             raise ValueError("Must provide either post_id, post_data, or text")
         return v

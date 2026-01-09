@@ -52,6 +52,51 @@ class Config:
     # Rate Limiting
     REQUESTS_PER_MINUTE = 30
 
+    # Post Filtering Defaults
+    DEFAULT_MIN_UPVOTES = 500
+    MEANINGFUL_TEXT_THRESHOLD = 50  # Characters for "meaningful text"
+
+    # TTS Configuration
+    class TTSConfig:
+        """Text-to-Speech configuration and voice options"""
+        DEFAULT_VOICE = "en-US"
+        DEFAULT_LANGUAGE = "en"
+        DEFAULT_SPEED = 1.0
+        DEFAULT_ENGINE = "gtts"
+
+        # Supported voices for gTTS (accent via TLD)
+        GTTS_VOICES = {
+            # English variants
+            'en-US': {'language': 'en', 'tld': 'com', 'name': 'English (US)'},
+            'en-GB': {'language': 'en', 'tld': 'co.uk', 'name': 'English (UK)'},
+            'en-AU': {'language': 'en', 'tld': 'com.au', 'name': 'English (Australia)'},
+            'en-IN': {'language': 'en', 'tld': 'co.in', 'name': 'English (India)'},
+            'en-CA': {'language': 'en', 'tld': 'ca', 'name': 'English (Canada)'},
+
+            # Additional languages
+            'es-ES': {'language': 'es', 'tld': 'es', 'name': 'Spanish (Spain)'},
+            'es-MX': {'language': 'es', 'tld': 'com.mx', 'name': 'Spanish (Mexico)'},
+            'fr-FR': {'language': 'fr', 'tld': 'fr', 'name': 'French (France)'},
+            'fr-CA': {'language': 'fr', 'tld': 'ca', 'name': 'French (Canada)'},
+            'de-DE': {'language': 'de', 'tld': 'de', 'name': 'German'},
+            'it-IT': {'language': 'it', 'tld': 'it', 'name': 'Italian'},
+            'ja-JP': {'language': 'ja', 'tld': 'co.jp', 'name': 'Japanese'},
+            'pt-BR': {'language': 'pt', 'tld': 'com.br', 'name': 'Portuguese (Brazil)'},
+            'pt-PT': {'language': 'pt', 'tld': 'pt', 'name': 'Portuguese (Portugal)'},
+        }
+
+        # Supported speech rates
+        SPEED_PRESETS = {
+            'slow': 0.75,
+            'normal': 1.0,
+            'fast': 1.25,
+            'very_fast': 1.5
+        }
+
+        # Valid speed range
+        MIN_SPEED = 0.5
+        MAX_SPEED = 2.0
+
     @classmethod
     def validate(cls):
         """Validate that all required settings are present"""

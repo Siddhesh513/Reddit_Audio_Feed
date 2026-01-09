@@ -37,6 +37,26 @@ async def generate_audio(
     - **post_id**: Reddit post ID to fetch and convert
     - **post_data**: Complete post data dictionary
     - **text**: Raw text to convert
+
+    **Voice Options:**
+    - English: en-US, en-GB, en-AU, en-IN, en-CA
+    - Spanish: es-ES, es-MX
+    - French: fr-FR, fr-CA
+    - German: de-DE
+    - Italian: it-IT
+    - Japanese: ja-JP
+    - Portuguese: pt-BR, pt-PT
+
+    **Speed Options:**
+    - 0.75: Slow, clear speech
+    - 1.0: Normal speed (default)
+    - 1.25: Fast, efficient listening
+    - 1.5+: Very fast (may reduce clarity)
+
+    **Note:** Speed adjustment requires ffmpeg. Install with:
+    - macOS: `brew install ffmpeg`
+    - Ubuntu: `apt-get install ffmpeg`
+    - Windows: Download from ffmpeg.org
     """
     try:
         generator = get_audio_generator(request.engine)
@@ -70,6 +90,7 @@ async def generate_audio(
             post,
             voice=request.voice,
             speed=request.speed,
+            language=request.language,
             force_regenerate=True
         )
 
@@ -284,7 +305,7 @@ async def batch_generate_audio(
     post_ids: List[str],
     voice: Optional[str] = "en-US",
     speed: float = 1.0,
-
+    language: Optional[str] = None
 ):
     """
     Generate audio for multiple posts
@@ -292,6 +313,7 @@ async def batch_generate_audio(
     - **post_ids**: List of Reddit post IDs
     - **voice**: Voice to use for all posts
     - **speed**: Speech speed
+    - **language**: Optional language override
     """
     try:
         if len(post_ids) > 20:
@@ -308,7 +330,7 @@ async def batch_generate_audio(
                 post = reddit.get_post_content(post_id)
                 if post:
                     result = generator.generate_from_post(
-                        post, voice=voice, speed=speed)
+                        post, voice=voice, speed=speed, language=language)
                     results.append({
                         "post_id": post_id,
                         "success": result.get('success', False),
@@ -369,4 +391,126 @@ async def get_audio_info(filename: str):
         raise
     except Exception as e:
         logger.error(f"Error getting info for {filename}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/voices")
+async def get_available_voices():
+    """
+    Get list of available TTS voices.
+
+    Returns available voices with metadata including:
+    - Voice ID
+    - Language
+    - Accent/Region
+    - Display name
+
+    Example response:
+    {
+        "voices": [
+            {
+                "id": "en-US",
+                "name": "English (US)",
+                "language": "en",
+                "tld": "com"
+            },
+            ...
+        ],
+        "default_voice": "en-US",
+        "speed_presets": {
+            "slow": 0.75,
+            "normal": 1.0,
+            "fast": 1.25
+        }
+    }
+    """
+    try:
+        voices = []
+        for voice_id, voice_config in config.TTSConfig.GTTS_VOICES.items():
+            voices.append({
+                'id': voice_id,
+                'name': voice_config['name'],
+                'language': voice_config['language'],
+                'tld': voice_config.get('tld', 'com')
+            })
+
+        return {
+            'voices': voices,
+            'default_voice': config.TTSConfig.DEFAULT_VOICE,
+            'speed_presets': config.TTSConfig.SPEED_PRESETS,
+            'speed_range': {
+                'min': config.TTSConfig.MIN_SPEED,
+                'max': config.TTSConfig.MAX_SPEED
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching voices: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/speed-presets")
+async def get_speed_presets():
+    """
+    Get available speech rate presets.
+
+    Returns:
+    {
+        "slow": 0.75,
+        "normal": 1.0,
+        "fast": 1.25,
+        "very_fast": 1.5
+    }
+    """
+    try:
+        return config.TTSConfig.SPEED_PRESETS
+    except Exception as e:
+        logger.error(f"Error fetching speed presets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/capabilities")
+async def get_tts_capabilities():
+    """
+    Get current TTS system capabilities and configuration.
+
+    Returns information about:
+    - Available engines
+    - Speed adjustment support
+    - Required dependencies status
+    - Voice options
+
+    Useful for frontend to adapt UI based on capabilities.
+    """
+    try:
+        from src.utils.system_check import get_tts_capabilities
+
+        caps = get_tts_capabilities()
+
+        return {
+            'engines': {
+                'gtts': caps['gtts_available'],
+                'kokoro': False,  # Placeholder
+                'mock': True
+            },
+            'features': {
+                'speed_adjustment': caps['speed_adjustment'],
+                'voice_selection': True,
+                'language_selection': True,
+                'batch_generation': True
+            },
+            'dependencies': {
+                'ffmpeg': caps['ffmpeg_installed'],
+                'pydub': caps['pydub_available']
+            },
+            'voice_count': len(config.TTSConfig.GTTS_VOICES),
+            'speed_range': {
+                'min': config.TTSConfig.MIN_SPEED,
+                'max': config.TTSConfig.MAX_SPEED
+            },
+            'warnings': [
+                'Speed adjustment requires ffmpeg and pydub'
+            ] if not caps['speed_adjustment'] else []
+        }
+    except Exception as e:
+        logger.error(f"Error fetching capabilities: {e}")
         raise HTTPException(status_code=500, detail=str(e))

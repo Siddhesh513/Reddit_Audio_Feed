@@ -53,6 +53,7 @@ class AudioGenerator:
         post: Dict[str, Any],
         voice: Optional[str] = None,
         speed: float = 1.0,
+        language: Optional[str] = None,
         force_regenerate: bool = False
     ) -> Dict[str, Any]:
         """
@@ -60,12 +61,23 @@ class AudioGenerator:
 
         Args:
             post: Reddit post dictionary
-            voice: Voice to use
-            speed: Speech speed
+            voice: Voice ID (e.g., 'en-US', 'es-ES', 'fr-FR')
+                   See config.TTSConfig.GTTS_VOICES for options
+            speed: Speech rate multiplier (0.5 - 2.0)
+                   - 0.75: Slow, clear speech
+                   - 1.0: Normal speed (default)
+                   - 1.25: Fast speech
+                   - 1.5+: Very fast
+            language: Optional language override (e.g., 'en', 'es', 'fr')
+                      Overrides the language from voice setting
             force_regenerate: Regenerate even if audio exists
 
         Returns:
             Audio generation result
+
+        Note:
+            Speed adjustment requires pydub and ffmpeg installed.
+            Without these, speed will default to gTTS slow mode only.
         """
         post_id = post.get('id', 'unknown')
 
@@ -113,7 +125,8 @@ class AudioGenerator:
                 text=tts_text,
                 output_path=output_path,
                 voice=voice,
-                speed=speed
+                speed=speed,
+                language=language
             )
 
             if result.get('success'):
@@ -152,6 +165,7 @@ class AudioGenerator:
         posts: List[Dict[str, Any]],
         voice: Optional[str] = None,
         speed: float = 1.0,
+        language: Optional[str] = None,
         max_posts: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
@@ -159,8 +173,9 @@ class AudioGenerator:
 
         Args:
             posts: List of Reddit posts
-            voice: Voice to use
-            speed: Speech speed
+            voice: Voice ID to use for all posts
+            speed: Speech rate multiplier
+            language: Optional language override
             max_posts: Maximum number of posts to process
 
         Returns:
@@ -175,7 +190,7 @@ class AudioGenerator:
         for i, post in enumerate(posts_to_process, 1):
             logger.info(f"Processing post {i}/{len(posts_to_process)}")
 
-            result = self.generate_from_post(post, voice, speed)
+            result = self.generate_from_post(post, voice, speed, language)
             results.append(result)
 
             # Log progress
