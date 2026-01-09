@@ -344,6 +344,6 @@ _audio_generator = None
 def get_audio_generator(engine_type: str = 'gtts', config: Optional[Dict] = None) -> AudioGenerator:
     """Get or create audio generator instance"""
     global _audio_generator
-    if _audio_generator is None or engine_type:
+    if _audio_generator is None:
         _audio_generator = AudioGenerator(engine_type, config)
     return _audio_generator

@@ -64,8 +64,8 @@ async def generate_audio(
         # Determine source of content
         if request.post_id:
             # Fetch post from Reddit
-            reddit = get_reddit_client()
-            post = reddit.get_post_content(request.post_id)
+            reddit = await get_reddit_client()
+            post = await reddit.get_post_content(request.post_id)
             if not post:
                 raise HTTPException(
                     status_code=404, detail=f"Post {request.post_id} not found")
@@ -321,13 +321,13 @@ async def batch_generate_audio(
                 status_code=400, detail="Maximum 20 posts per batch")
 
         # This could be moved to a background task for better performance
-        reddit = get_reddit_client()
+        reddit = await get_reddit_client()
         generator = get_audio_generator('gtts')
 
         results = []
         for post_id in post_ids:
             try:
-                post = reddit.get_post_content(post_id)
+                post = await reddit.get_post_content(post_id)
                 if post:
                     result = generator.generate_from_post(
                         post, voice=voice, speed=speed, language=language)

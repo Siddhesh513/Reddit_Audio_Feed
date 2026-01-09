@@ -59,7 +59,7 @@ async def add_to_queue(request: QueueAddRequest):
         
         if request.subreddit:
             # Add posts from subreddit
-            queue_ids = queue.add_subreddit_posts(
+            queue_ids = await queue.add_subreddit_posts(
                 request.subreddit,
                 limit=request.limit or 10,
                 min_score=0

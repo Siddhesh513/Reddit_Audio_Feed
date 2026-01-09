@@ -70,9 +70,9 @@ class AudioQueue:
         logger.info(f"Added post {post.get('id')} to queue with priority {priority}")
         return queue_id
     
-    def add_subreddit_posts(
-        self, 
-        subreddit: str, 
+    async def add_subreddit_posts(
+        self,
+        subreddit: str,
         sort_type: str = 'hot',
         limit: int = 10,
         min_score: int = 0
@@ -90,12 +90,12 @@ class AudioQueue:
             List of queue IDs
         """
         if not self.reddit_client:
-            self.reddit_client = get_reddit_client()
-        
+            self.reddit_client = await get_reddit_client()
+
         queue_ids = []
-        
+
         # Fetch posts
-        posts = self.reddit_client.fetch_subreddit_posts(subreddit, sort_type, limit)
+        posts = await self.reddit_client.fetch_subreddit_posts(subreddit, sort_type, limit)
         
         for post in posts:
             # Filter by score
