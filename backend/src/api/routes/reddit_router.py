@@ -61,10 +61,11 @@ async def fetch_reddit_posts(
     Posts list with metadata including total fetched, total passed filters, and filter statistics.
     """
     try:
-        reddit = get_reddit_client()
+        logger.info(f"API request: Fetching posts from r/{subreddit}")
+        reddit = await get_reddit_client()
 
         # Validate subreddit
-        if not reddit.validate_subreddit(subreddit):
+        if not await reddit.validate_subreddit(subreddit):
             raise HTTPException(status_code=404, detail=f"Subreddit r/{subreddit} not found or inaccessible")
 
         # Build filter config if any filters are specified
@@ -83,11 +84,12 @@ async def fetch_reddit_posts(
             )
 
         # Fetch posts (with or without filters)
-        result = reddit.fetch_subreddit_posts(subreddit, sort_type, limit, filter_config)
+        result = await reddit.fetch_subreddit_posts(subreddit, sort_type, limit, filter_config)
 
         # Handle backwards compatibility
         if isinstance(result, list):
             # Old format (no filters) - wrap in new format
+            logger.success(f"Successfully returning {len(result)} posts from r/{subreddit}")
             return {
                 'posts': [RedditPostResponse(**post) for post in result],
                 'metadata': {
@@ -100,6 +102,7 @@ async def fetch_reddit_posts(
             }
         else:
             # New format (with filters)
+            logger.success(f"Successfully returning {len(result['posts'])} posts from r/{subreddit}")
             return {
                 'posts': [RedditPostResponse(**post) for post in result['posts']],
                 'metadata': result['metadata']
@@ -108,7 +111,7 @@ async def fetch_reddit_posts(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching posts: {e}")
+        logger.error(f"Error fetching posts from r/{subreddit}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -116,18 +119,18 @@ async def fetch_reddit_posts(
 async def get_reddit_post(post_id: str):
     """
     Get a specific Reddit post by ID
-    
+
     - **post_id**: Reddit post ID
     """
     try:
-        reddit = get_reddit_client()
-        post = reddit.get_post_content(post_id)
-        
+        reddit = await get_reddit_client()
+        post = await reddit.get_post_content(post_id)
+
         if not post:
             raise HTTPException(status_code=404, detail=f"Post {post_id} not found")
-        
+
         return RedditPostResponse(**post)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -143,33 +146,35 @@ async def fetch_multiple_subreddits(
 ):
     """
     Fetch posts from multiple subreddits
-    
+
     - **subreddits**: List of subreddit names
     - **sort_type**: How to sort posts
     - **limit_per_sub**: Posts per subreddit
     """
     try:
-        reddit = get_reddit_client()
+        reddit = await get_reddit_client()
         all_posts = []
         errors = []
-        
+
         for subreddit in subreddits[:10]:  # Limit to 10 subreddits
             try:
-                posts = reddit.fetch_subreddit_posts(subreddit, sort_type, limit_per_sub)
+                result = await reddit.fetch_subreddit_posts(subreddit, sort_type, limit_per_sub)
+                posts = result if isinstance(result, list) else result.get('posts', [])
                 all_posts.extend(posts)
             except Exception as e:
                 errors.append({"subreddit": subreddit, "error": str(e)})
-            
+
             # Small delay to avoid rate limiting
-            time.sleep(0.5)
-        
+            import asyncio
+            await asyncio.sleep(0.5)
+
         return {
             "success": True,
             "posts": [RedditPostResponse(**post) for post in all_posts],
             "errors": errors if errors else None,
             "total": len(all_posts)
         }
-        
+
     except Exception as e:
         logger.error(f"Error in batch fetch: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -179,32 +184,33 @@ async def fetch_multiple_subreddits(
 async def get_trending_posts(limit: int = Query(10, ge=1, le=50)):
     """
     Get trending posts from popular subreddits
-    
+
     - **limit**: Total number of posts to return
     """
     try:
-        reddit = get_reddit_client()
+        reddit = await get_reddit_client()
         trending_subs = ["todayilearned", "AskReddit", "Showerthoughts", "LifeProTips", "explainlikeimfive"]
-        
+
         all_posts = []
         posts_per_sub = max(1, limit // len(trending_subs))
-        
+
         for sub in trending_subs:
             try:
-                posts = reddit.fetch_subreddit_posts(sub, "hot", posts_per_sub)
+                result = await reddit.fetch_subreddit_posts(sub, "hot", posts_per_sub)
+                posts = result if isinstance(result, list) else result.get('posts', [])
                 all_posts.extend(posts)
             except:
                 continue  # Skip failed subreddits
-        
+
         # Sort by score and return top posts
         all_posts.sort(key=lambda x: x.get('score', 0), reverse=True)
-        
+
         return {
             "success": True,
             "posts": [RedditPostResponse(**post) for post in all_posts[:limit]],
             "total": len(all_posts[:limit])
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching trending: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -214,30 +220,30 @@ async def get_trending_posts(limit: int = Query(10, ge=1, le=50)):
 async def process_reddit_post(post_id: str):
     """
     Process a Reddit post through the text pipeline
-    
+
     - **post_id**: Reddit post ID to process
     """
     try:
-        reddit = get_reddit_client()
+        reddit = await get_reddit_client()
         processor = get_text_processor()
-        
+
         # Fetch post
-        post = reddit.get_post_content(post_id)
+        post = await reddit.get_post_content(post_id)
         if not post:
             raise HTTPException(status_code=404, detail=f"Post {post_id} not found")
-        
+
         # Process text
         processed = processor.process_post(post)
-        
+
         # Save processed post
         storage = get_storage_service()
         storage.save_posts([processed], post.get('subreddit', 'unknown'), f"processed_{post_id}.json")
-        
+
         return BaseResponse(
             success=True,
             message=f"Post {post_id} processed successfully"
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -249,20 +255,20 @@ async def process_reddit_post(post_id: str):
 async def validate_subreddit(name: str = Query(..., description="Subreddit name")):
     """
     Check if a subreddit exists and is accessible
-    
+
     - **name**: Subreddit name to validate
     """
     try:
-        reddit = get_reddit_client()
-        is_valid = reddit.validate_subreddit(name)
-        
+        reddit = await get_reddit_client()
+        is_valid = await reddit.validate_subreddit(name)
+
         return {
             "success": True,
             "subreddit": name,
             "valid": is_valid,
             "message": f"r/{name} is {'valid and accessible' if is_valid else 'invalid or inaccessible'}"
         }
-        
+
     except Exception as e:
         logger.error(f"Error validating subreddit {name}: {e}")
         return {

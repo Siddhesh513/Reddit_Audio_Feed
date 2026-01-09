@@ -1,5 +1,6 @@
 # Reddit API
 praw==7.7.1
+asyncpraw==7.7.1
 
 # Environment and Config
 python-dotenv==1.0.0

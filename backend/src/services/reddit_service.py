@@ -1,12 +1,11 @@
 """
 Reddit Service Module
-Handles all interactions with Reddit API using PRAW
+Handles all interactions with Reddit API using Async PRAW
 """
 
-import praw
+import asyncpraw
 from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime
-import time
 
 from src.config.settings import config
 from src.utils.loggers import get_logger
@@ -16,40 +15,28 @@ from src.models.post_filter_config import PostFilterConfig
 logger = get_logger(__name__)
 
 
-class RedditClient:
-    """Reddit API client wrapper"""
+class AsyncRedditClient:
+    """Async Reddit API client wrapper"""
 
     def __init__(self):
-        """Initialize Reddit client with credentials from config"""
+        """Initialize async Reddit client with credentials from config"""
         try:
-            self.reddit = praw.Reddit(
+            self.reddit = asyncpraw.Reddit(
                 client_id=config.REDDIT_CLIENT_ID,
                 client_secret=config.REDDIT_CLIENT_SECRET,
                 user_agent=config.REDDIT_USER_AGENT
             )
-            # Test the connection
-            self._verify_connection()
-            logger.success("Reddit client initialized successfully")
+            logger.success("Async Reddit client initialized successfully")
 
         except Exception as e:
-            logger.error(f"Failed to initialize Reddit client: {e}")
+            logger.error(f"Failed to initialize async Reddit client: {e}")
             raise
 
-    def _verify_connection(self):
-        """Verify Reddit API connection is working"""
-        try:
-            # Simple API call to verify credentials
-            self.reddit.user.me()
-        except Exception:
-            # For read-only mode, we can't call user.me(), so try a different approach
-            try:
-                test = self.reddit.subreddit("test")
-                _ = test.display_name
-            except Exception as e:
-                logger.error(f"Connection verification failed: {e}")
-                raise ConnectionError(f"Unable to connect to Reddit API: {e}")
+    async def close(self):
+        """Close the async Reddit client connection"""
+        await self.reddit.close()
 
-    def validate_subreddit(self, subreddit_name: str) -> bool:
+    async def validate_subreddit(self, subreddit_name: str) -> bool:
         """
         Check if a subreddit exists and is accessible
 
@@ -60,22 +47,24 @@ class RedditClient:
             bool: True if subreddit is valid and accessible
         """
         try:
-            subreddit = self.reddit.subreddit(subreddit_name)
-            # Try to access a property to trigger any errors
-            _ = subreddit.display_name
+            subreddit = await self.reddit.subreddit(subreddit_name)
+            # Load the subreddit to trigger any errors
+            await subreddit.load()
             logger.info(f"Subreddit r/{subreddit_name} validated successfully")
             return True
 
-        except praw.exceptions.InvalidSubreddit:
-            logger.warning(f"Invalid subreddit: r/{subreddit_name}")
-            return False
-        except praw.exceptions.Forbidden:
-            logger.warning(
-                f"Subreddit r/{subreddit_name} is private or banned")
-            return False
         except Exception as e:
-            logger.error(f"Error validating subreddit r/{subreddit_name}: {e}")
-            return False
+            error_str = str(e).lower()
+            # Check for common error patterns
+            if 'not found' in error_str or 'subreddit' in error_str or '404' in error_str:
+                logger.warning(f"Invalid subreddit: r/{subreddit_name}")
+                return False
+            elif 'forbidden' in error_str or 'private' in error_str or '403' in error_str:
+                logger.warning(f"Subreddit r/{subreddit_name} is private or banned")
+                return False
+            else:
+                logger.error(f"Error validating subreddit r/{subreddit_name}: {e}")
+                return False
 
     def _get_post_text_length(self, post: Dict[str, Any]) -> int:
         """
@@ -188,7 +177,7 @@ class RedditClient:
 
         return (True, None)
 
-    def fetch_subreddit_posts(
+    async def fetch_subreddit_posts(
         self,
         subreddit_name: str,
         sort_type: str = "hot",
@@ -222,10 +211,16 @@ class RedditClient:
         posts = []
 
         # Validate inputs
-        if not self.validate_subreddit(subreddit_name):
+        if not await self.validate_subreddit(subreddit_name):
             logger.error(
                 f"Cannot fetch posts from invalid subreddit: r/{subreddit_name}")
-            return posts
+            return {'posts': [], 'metadata': {
+                'total_fetched': 0,
+                'total_passed_filters': 0,
+                'filters_applied': {},
+                'filter_reasons': None,
+                'message': f"Subreddit r/{subreddit_name} not found or inaccessible"
+            }}
 
         if sort_type not in ['hot', 'new', 'top', 'rising']:
             logger.warning(
@@ -240,7 +235,7 @@ class RedditClient:
         try:
             logger.info(
                 f"Fetching {limit} {sort_type} posts from r/{subreddit_name}")
-            subreddit = self.reddit.subreddit(subreddit_name)
+            subreddit = await self.reddit.subreddit(subreddit_name)
 
             # Get the appropriate sorting method
             if sort_type == 'hot':
@@ -252,9 +247,9 @@ class RedditClient:
             elif sort_type == 'rising':
                 submissions = subreddit.rising(limit=limit)
 
-            # Process each submission
-            for submission in submissions:
-                post_data = self._extract_post_data(submission)
+            # Process each submission asynchronously
+            async for submission in submissions:
+                post_data = await self._extract_post_data(submission)
                 posts.append(post_data)
 
             logger.success(
@@ -262,6 +257,13 @@ class RedditClient:
 
         except Exception as e:
             logger.error(f"Error fetching posts from r/{subreddit_name}: {e}")
+            return {'posts': [], 'metadata': {
+                'total_fetched': 0,
+                'total_passed_filters': 0,
+                'filters_applied': {},
+                'filter_reasons': None,
+                'message': f"Error fetching posts: {str(e)}"
+            }}
 
         # Apply filters if provided
         if filter_config is None:
@@ -305,18 +307,19 @@ class RedditClient:
             }
         }
 
-    def _extract_post_data(self, submission) -> Dict[str, Any]:
+    async def _extract_post_data(self, submission) -> Dict[str, Any]:
         """
         Extract relevant data from a Reddit submission
 
         Args:
-            submission: PRAW Submission object
+            submission: Async PRAW Submission object
 
         Returns:
             Dictionary containing post data
         """
         try:
-            # Basic post data
+            # For async PRAW, properties are directly accessible after being fetched
+            # The submission object already has all data loaded from the async for loop
             post_data = {
                 'id': submission.id,
                 'title': submission.title,
@@ -369,7 +372,7 @@ class RedditClient:
                 'fetched_at': datetime.now().isoformat()
             }
 
-    def get_post_content(self, post_id: str) -> Optional[Dict[str, Any]]:
+    async def get_post_content(self, post_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetch a single post by ID
 
@@ -380,10 +383,8 @@ class RedditClient:
             Dictionary containing post data or None if not found
         """
         try:
-            submission = self.reddit.submission(id=post_id)
-            # Force load the submission data
-            submission._fetch()
-            return self._extract_post_data(submission)
+            submission = await self.reddit.submission(id=post_id)
+            return await self._extract_post_data(submission)
 
         except Exception as e:
             logger.error(f"Error fetching post {post_id}: {e}")
@@ -394,9 +395,9 @@ class RedditClient:
 _reddit_client = None
 
 
-def get_reddit_client() -> RedditClient:
-    """Get or create Reddit client instance"""
+async def get_reddit_client() -> AsyncRedditClient:
+    """Get or create async Reddit client instance"""
     global _reddit_client
     if _reddit_client is None:
-        _reddit_client = RedditClient()
+        _reddit_client = AsyncRedditClient()
     return _reddit_client
