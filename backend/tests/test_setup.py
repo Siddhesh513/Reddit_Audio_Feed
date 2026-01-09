@@ -3,7 +3,7 @@
 
 import pytest
 from src.utils.loggers import logger, get_logger
-from src.config.settings import config
+from src.config.settings import Config
 import sys
 from pathlib import Path
 
@@ -15,22 +15,22 @@ def test_config(monkeypatch):
     """Test configuration loading"""
     logger.info("Testing configuration...")
 
-    # Patch Config class attributes directly (not env vars)
-    # Config reads env vars at import time, so we must patch the already-loaded attributes
-    monkeypatch.setattr(config, "REDDIT_CLIENT_ID", "test_client_id_12345")
-    monkeypatch.setattr(config, "REDDIT_CLIENT_SECRET", "test_client_secret_67890")
-    monkeypatch.setattr(config, "REDDIT_USER_AGENT", "test_user_agent/1.0")
+    # Patch Config CLASS attributes (not instance)
+    # Config.validate() is a classmethod that checks cls.REDDIT_CLIENT_ID, etc.
+    monkeypatch.setattr(Config, "REDDIT_CLIENT_ID", "test_client_id_12345")
+    monkeypatch.setattr(Config, "REDDIT_CLIENT_SECRET", "test_client_secret_67890")
+    monkeypatch.setattr(Config, "REDDIT_USER_AGENT", "test_user_agent/1.0")
 
     try:
-        config.validate()
+        Config.validate()
         logger.success("✅ Configuration validated successfully!")
 
-        logger.info(f"Reddit Client ID: {config.REDDIT_CLIENT_ID[:7]}...")
-        logger.info(f"Raw data directory: {config.DATA_RAW_PATH}")
-        logger.info(f"Processed data directory: {config.DATA_PROCESSED_PATH}")
-        logger.info(f"Audio data directory: {config.DATA_AUDIO_PATH}")
-        logger.info(f"Debug mode: {config.DEBUG}")
-        logger.info(f"Log level: {config.LOG_LEVEL}")
+        logger.info(f"Reddit Client ID: {Config.REDDIT_CLIENT_ID[:7]}...")
+        logger.info(f"Raw data directory: {Config.DATA_RAW_PATH}")
+        logger.info(f"Processed data directory: {Config.DATA_PROCESSED_PATH}")
+        logger.info(f"Audio data directory: {Config.DATA_AUDIO_PATH}")
+        logger.info(f"Debug mode: {Config.DEBUG}")
+        logger.info(f"Log level: {Config.LOG_LEVEL}")
 
     except ValueError as e:
         logger.error(f"❌ Configuration validation failed: {e}")
