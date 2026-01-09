@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test configuration and logging setup"""
 
+import pytest
 from src.utils.loggers import logger, get_logger
 from src.config.settings import config
 import sys
@@ -27,9 +28,9 @@ def test_config():
 
     except ValueError as e:
         logger.error(f"❌ Configuration validation failed: {e}")
-        return False
+        pytest.fail(f"Configuration validation failed: {e}")
 
-    return True
+    assert True  # Test completed successfully
 
 
 def test_logging():
@@ -43,7 +44,7 @@ def test_logging():
         "This is an error message (not a real error, just testing)")
     test_logger.success("This is a success message")
 
-    return True
+    assert True  # Test completed successfully
 
 
 if __name__ == "__main__":

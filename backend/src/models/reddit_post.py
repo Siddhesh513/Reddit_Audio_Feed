@@ -187,7 +187,20 @@ class PostCollection:
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about the collection"""
         if not self.posts:
-            return {"total": 0}
+            return {
+                "total": 0,
+                "subreddits": [],  # Always return empty list instead of missing key
+                "with_text": 0,
+                "avg_score": 0,
+                "avg_comments": 0,
+                "nsfw_count": 0,
+                "spoiler_count": 0,
+                "processing_status": {
+                    "pending": 0,
+                    "processed": 0,
+                    "failed": 0
+                }
+            }
 
         return {
             "total": len(self.posts),

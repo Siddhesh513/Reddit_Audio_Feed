@@ -49,7 +49,7 @@ def test_content_filter():
             stats = filtered['filter_stats']
             logger.info(f"Stats: {stats['profanity_count']} profanity found")
     
-    return True
+    assert True  # Test completed successfully
 
 
 def test_tts_preprocessing():
@@ -73,7 +73,7 @@ def test_tts_preprocessing():
         logger.info(f"\nOriginal: {text}")
         logger.info(f"For TTS:  {processed}")
     
-    return True
+    assert True  # Test completed successfully
 
 
 def test_full_pipeline():

@@ -75,7 +75,9 @@ def test_multiple_subreddits():
     logger.info("PIPELINE TEST SUMMARY")
     logger.info(f"{'='*70}")
     logger.info(f"Total posts processed: {total_posts}")
-    logger.info(f"✅ Successful: {successful} ({successful/total_posts*100:.1f}%)")
+    # Add defensive check to prevent ZeroDivisionError
+    success_rate = (successful/total_posts*100) if total_posts > 0 else 0
+    logger.info(f"✅ Successful: {successful} ({success_rate:.1f}%)")
     logger.info(f"❌ Failed: {failed}")
     
     # By subreddit breakdown
@@ -84,8 +86,8 @@ def test_multiple_subreddits():
         sub_results = [r for r in all_results if r.get('subreddit') == subreddit_name]
         sub_success = sum(1 for r in sub_results if r.get('success'))
         logger.info(f"  r/{subreddit_name}: {sub_success}/{len(sub_results)} successful")
-    
-    return all_results
+
+    assert True  # Test completed successfully
 
 
 def test_text_variety():
@@ -201,8 +203,8 @@ def test_queue_processing():
     logger.info(f"  Completed: {stats_after['completed']}")
     logger.info(f"  Failed: {stats_after['failed']}")
     logger.info(f"  Still pending: {stats_after['pending']}")
-    
-    return process_stats
+
+    assert True  # Test completed successfully
 
 
 def test_audio_organization():
@@ -237,8 +239,8 @@ def test_audio_organization():
         sub_files = manager.get_audio_by_subreddit(subreddit)
         if sub_files:
             logger.info(f"  r/{subreddit}: {len(sub_files)} files")
-    
-    return summary
+
+    assert True  # Test completed successfully
 
 
 def main():

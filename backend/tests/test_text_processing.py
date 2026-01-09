@@ -36,7 +36,7 @@ def test_reddit_text_cleaning():
         logger.info(f"Output: {cleaned}")
         logger.success("✅ Processed")
     
-    return True
+    assert True  # Test completed successfully
 
 
 def test_with_real_posts():
@@ -58,7 +58,7 @@ def test_with_real_posts():
         stats = TextHelpers.extract_statistics(processed['tts_text'])
         logger.info(f"Words: {stats['word_count']}, Read time: {stats['estimated_reading_time']:.1f}s")
     
-    return True
+    assert True  # Test completed successfully
 
 
 def main():

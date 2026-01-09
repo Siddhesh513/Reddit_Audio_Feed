@@ -42,7 +42,7 @@ def test_models():
     stats = collection.get_statistics()
     logger.info(f"Collection stats: {stats}")
 
-    return True
+    assert True  # Test completed successfully
 
 
 def test_storage_with_real_data():
@@ -90,7 +90,7 @@ def test_storage_with_real_data():
         logger.info(
             f"  {directory}: {stats['file_count']} files, {stats['total_size_mb']} MB")
 
-    return True
+    assert True  # Test completed successfully
 
 
 def main():

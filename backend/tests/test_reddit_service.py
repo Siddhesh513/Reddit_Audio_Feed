@@ -3,6 +3,7 @@
 Test Reddit Service functionality
 """
 
+import pytest
 from src.utils.loggers import logger
 from src.services.reddit_service import get_reddit_client
 from pprint import pprint
@@ -20,10 +21,10 @@ def test_reddit_connection():
     try:
         client = get_reddit_client()
         logger.success("✅ Reddit client created successfully")
-        return client
+        assert client is not None, "Client should not be None"
     except Exception as e:
         logger.error(f"❌ Failed to create Reddit client: {e}")
-        return None
+        pytest.fail(f"Failed to create Reddit client: {e}")
 
 
 def test_subreddit_validation(client):
@@ -83,7 +84,7 @@ def test_fetch_posts(client):
         else:
             logger.warning(f"❌ No posts fetched from r/{subreddit}")
 
-    return all_posts
+    assert len(all_posts) > 0, "Should have fetched at least some posts"
 
 
 def test_save_to_json(posts):

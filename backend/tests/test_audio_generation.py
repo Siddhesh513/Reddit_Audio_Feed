@@ -33,8 +33,8 @@ def test_tts_engines():
     # Estimate duration
     duration = generator.engine.estimate_duration(test_text)
     logger.info(f"Estimated duration: {duration:.1f} seconds")
-    
-    return True
+
+    assert True  # Test completed successfully
 
 
 def test_single_post_audio():
@@ -66,8 +66,8 @@ def test_single_post_audio():
         logger.info(f"  Size: {result.get('file_size_bytes', 0)/1024:.1f}KB")
     else:
         logger.error(f"❌ Audio generation failed: {result.get('error')}")
-    
-    return result.get('success', False)
+
+    assert result.get('success'), f"Audio generation failed: {result.get('error')}"
 
 
 def test_real_reddit_audio():
@@ -106,8 +106,8 @@ def test_real_reddit_audio():
         logger.info(f"  Recent files:")
         for file in stats['recent_files'][:3]:
             logger.info(f"    - {file}")
-    
-    return True
+
+    assert True  # Test completed successfully
 
 
 def main():

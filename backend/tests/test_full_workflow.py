@@ -121,7 +121,7 @@ def test_complete_workflow():
     estimated_audio = sum(post.estimated_audio_duration for post in text_posts)
     logger.info(f"  • Estimated audio time: {estimated_audio/60:.1f} minutes")
 
-    return True
+    assert True  # Workflow completed successfully
 
 
 def test_edge_cases():

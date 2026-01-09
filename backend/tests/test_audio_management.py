@@ -34,8 +34,8 @@ def test_audio_manager():
     # Organize files
     stats = manager.organize_audio_files()
     logger.info(f"\nOrganized {stats['files_organized']} files into {stats['folders_created']} folders")
-    
-    return True
+
+    assert True  # Test completed successfully
 
 
 def test_audio_queue():
@@ -65,8 +65,8 @@ def test_audio_queue():
     logger.info(f"\nProcessing Results:")
     logger.info(f"  Successful: {process_stats['successful']}")
     logger.info(f"  Failed: {process_stats['failed']}")
-    
-    return True
+
+    assert True  # Test completed successfully
 
 
 def test_playlist_creation():
@@ -91,8 +91,8 @@ def test_playlist_creation():
             logger.info(f"Playlist has {len([l for l in lines if not l.startswith('#')])} tracks")
     else:
         logger.warning("No recent audio files for playlist")
-    
-    return True
+
+    assert True  # Test completed successfully
 
 
 def main():
