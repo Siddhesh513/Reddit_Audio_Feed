@@ -11,9 +11,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def test_config():
+def test_config(monkeypatch):
     """Test configuration loading"""
     logger.info("Testing configuration...")
+
+    # Mock required environment variables for CI/testing
+    # These are needed for config.validate() to pass without real Reddit API credentials
+    monkeypatch.setenv("REDDIT_CLIENT_ID", "test_client_id_12345")
+    monkeypatch.setenv("REDDIT_CLIENT_SECRET", "test_client_secret_67890")
+    monkeypatch.setenv("REDDIT_USER_AGENT", "test_user_agent/1.0")
 
     try:
         config.validate()
