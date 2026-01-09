@@ -85,8 +85,10 @@ class APIClient {
             sort_type: sortType,
             limit: limit
         });
-        
-        return this.request(`${CONFIG.API_ENDPOINTS.FETCH_POSTS}?${params}`);
+
+        const response = await this.request(`${CONFIG.API_ENDPOINTS.FETCH_POSTS}?${params}`);
+        // Backend returns {posts: [...], metadata: {...}}, extract posts array
+        return response.posts || response;
     }
 
     async validateSubreddit(name) {
