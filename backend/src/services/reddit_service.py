@@ -372,23 +372,77 @@ class AsyncRedditClient:
                 'fetched_at': datetime.now().isoformat()
             }
 
-    async def get_post_content(self, post_id: str) -> Optional[Dict[str, Any]]:
+    async def get_post_content(self, post_id: str, include_comments: bool = False, comment_limit: int = 3) -> Optional[Dict[str, Any]]:
         """
         Fetch a single post by ID
 
         Args:
             post_id: Reddit post ID
+            include_comments: Whether to include top comments
+            comment_limit: Number of top comments to fetch (default: 3)
 
         Returns:
             Dictionary containing post data or None if not found
         """
         try:
             submission = await self.reddit.submission(id=post_id)
-            return await self._extract_post_data(submission)
+            post_data = await self._extract_post_data(submission)
+
+            if include_comments and post_data:
+                comments = await self._fetch_top_comments(submission, comment_limit)
+                post_data['comments'] = comments
+
+            return post_data
 
         except Exception as e:
             logger.error(f"Error fetching post {post_id}: {e}")
             return None
+
+    async def _fetch_top_comments(self, submission, limit: int = 3) -> List[Dict[str, Any]]:
+        """
+        Fetch top N comments from a submission
+
+        Args:
+            submission: Async PRAW Submission object
+            limit: Maximum number of comments to fetch
+
+        Returns:
+            List of comment dictionaries
+        """
+        comments = []
+        try:
+            # Replace MoreComments objects to get actual comments
+            await submission.comments.replace_more(limit=0)
+
+            # Get top-level comments sorted by score
+            top_comments = sorted(
+                submission.comments,
+                key=lambda c: c.score if hasattr(c, 'score') else 0,
+                reverse=True
+            )[:limit]
+
+            for comment in top_comments:
+                # Skip deleted/removed comments
+                if not hasattr(comment, 'body') or not comment.body:
+                    continue
+                if comment.body in ['[deleted]', '[removed]']:
+                    continue
+
+                comment_data = {
+                    'id': comment.id,
+                    'author': str(comment.author) if comment.author else '[deleted]',
+                    'body': comment.body,
+                    'score': comment.score if hasattr(comment, 'score') else 0,
+                    'created_utc': datetime.fromtimestamp(comment.created_utc).isoformat() if hasattr(comment, 'created_utc') else None
+                }
+                comments.append(comment_data)
+
+            logger.info(f"Fetched {len(comments)} comments for post {submission.id}")
+
+        except Exception as e:
+            logger.error(f"Error fetching comments: {e}")
+
+        return comments
 
 
 # Create a singleton instance

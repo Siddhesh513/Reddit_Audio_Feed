@@ -336,6 +336,98 @@ class AudioGenerator:
             f"Cleanup complete: deleted {deleted} audio files older than {days} days")
         return deleted
 
+    def generate_with_comments(
+        self,
+        post: Dict[str, Any],
+        voice: Optional[str] = None,
+        speed: float = 1.0,
+        language: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate audio segments for post and comments
+
+        Args:
+            post: Reddit post data (must include 'comments' key)
+            voice: Voice for post (comments will use different voices)
+            speed: Speech rate
+            language: Language override
+
+        Returns:
+            Dictionary with 'segments' list containing audio data
+        """
+        from src.config.voice_config import get_voice_for_segment
+        import re
+
+        segments = []
+        post_id = post.get('id', 'unknown')
+
+        # Generate post audio segment
+        post_voice = voice or get_voice_for_segment('post')
+        post_result = self.generate_from_post(post, post_voice, speed, language)
+
+        if post_result.get('success'):
+            segments.append({
+                'type': 'post',
+                'audio_file': post_result.get('filename'),
+                'text': post.get('title', '') + ' ' + post.get('selftext', '')[:100],
+                'voice': post_voice,
+                'success': True
+            })
+        else:
+            logger.warning(f"Post audio generation failed for {post_id}")
+
+        # Generate comment audio segments
+        comments = post.get('comments', [])
+        for idx, comment in enumerate(comments):
+            try:
+                comment_voice = get_voice_for_segment('comment', idx)
+                comment_text = comment.get('body', '')
+
+                # Clean comment text
+                comment_text = re.sub(r'<[^>]+>', '', comment_text)
+                comment_text = re.sub(r'\s+', ' ', comment_text).strip()
+
+                if not comment_text or len(comment_text) < 10:
+                    continue
+
+                # Generate filename for comment
+                safe_id = re.sub(r'[^a-z0-9_]', '_', comment.get('id', f'comment_{idx}').lower())
+                filename = f"{post.get('subreddit', 'reddit')}_{post_id}_comment_{safe_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
+                output_path = str(self.audio_dir / filename)
+
+                # Generate audio
+                result = self.engine.generate_audio(
+                    text=comment_text,
+                    output_path=output_path,
+                    voice=comment_voice,
+                    speed=speed,
+                    language=language
+                )
+
+                if result.get('success'):
+                    segments.append({
+                        'type': 'comment',
+                        'audio_file': filename,
+                        'text': comment_text[:100],
+                        'voice': comment_voice,
+                        'author': comment.get('author', 'unknown'),
+                        'success': True
+                    })
+                    logger.info(f"Generated comment audio: {filename}")
+                else:
+                    logger.warning(f"Comment {idx} audio generation failed")
+
+            except Exception as e:
+                logger.error(f"Error generating comment {idx} audio: {e}")
+                # Continue with next comment
+
+        return {
+            'post_id': post_id,
+            'success': len(segments) > 0,
+            'segments': segments,
+            'total_segments': len(segments)
+        }
+
 
 # Singleton instance
 _audio_generator = None

@@ -121,6 +121,63 @@ async def generate_audio(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/generate-with-comments")
+async def generate_audio_with_comments(
+    post_id: str,
+    comment_limit: int = 3,
+    voice: Optional[str] = None,
+    speed: float = 1.0,
+    language: Optional[str] = None
+):
+    """
+    Generate audio for post and top comments with different voices
+
+    Args:
+        post_id: Reddit post ID
+        comment_limit: Number of top comments to include (default: 3)
+        voice: Voice for post narration (comments use different voices)
+        speed: Playback speed
+        language: Language override
+
+    Returns:
+        Segments list with audio files and metadata
+    """
+    try:
+        # Fetch post with comments
+        reddit = await get_reddit_client()
+        post = await reddit.get_post_content(post_id, include_comments=True, comment_limit=comment_limit)
+
+        if not post:
+            raise HTTPException(status_code=404, detail=f"Post {post_id} not found")
+
+        # Generate audio segments
+        generator = get_audio_generator()
+        result = generator.generate_with_comments(post, voice, speed, language)
+
+        if result.get('success'):
+            # Build download URLs for segments
+            for segment in result.get('segments', []):
+                if segment.get('audio_file'):
+                    segment['download_url'] = f"/api/audio/download/{segment['audio_file']}"
+                    segment['stream_url'] = f"/api/audio/stream/{segment['audio_file']}"
+
+            return {
+                "success": True,
+                "post_id": post_id,
+                "segments": result['segments'],
+                "total_segments": result['total_segments'],
+                "message": f"Generated {result['total_segments']} audio segments"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Audio generation failed")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating audio with comments: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/download/{filename}")
 async def download_audio(filename: str):
     """
